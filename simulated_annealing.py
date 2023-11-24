@@ -6,7 +6,7 @@ import random
 (number of components, number of nets, the placement grid, and the nets connections details.)'''
 def parse_netlist(filename):
     with open(filename, 'r') as file:
-        lines = file.reaslines()
+        lines = file.readlines()
     header = list(map(int,lines[0].split()))
     num_cells, num_nets, rows, cols = header
     nets = []
