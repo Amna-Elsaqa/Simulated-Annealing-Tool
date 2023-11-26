@@ -1,16 +1,18 @@
 import numpy as np
 import random
+import math
 
 
-'''Function to parse the input file netlist file and return all needed info:
-(number of components, number of nets, the placement grid, and the nets connections details.)'''
-
+# Function to parse the input file netlist file and return all needed info:
+# (number of components, number of nets, the placement grid, and the nets connections details.)
 def parse_netlist(filename):
     with open(filename, 'r') as file:
         lines = file.readlines()
+    # Read first line in the file which contains (num of cells, num of nets, gird size) and convert values to int.
     header = list(map(int, lines[0].split()))
     num_cells, num_nets, rows, cols = header
     nets = []
+    # For the rest of the lines, read the netlist connections details.
     for line in lines[1:]:
         nets.append(list(map(int, line.split(' '))))
     return num_cells, num_nets, rows, cols, nets
@@ -38,6 +40,7 @@ def display_grid(grid):
 def calculate_wirelength(nets, cell_positions):
     total_wirelength = 0
     for net in nets:
+        # Initialize the nets minimum (x,y) coordinates with infinity, and the maximum with negative infinity.
         x_min, y_min = float('inf'), float('inf')
         x_max, y_max = float('-inf'), float('-inf')
 
@@ -46,7 +49,7 @@ def calculate_wirelength(nets, cell_positions):
             x_min, y_min = min(x_min, x), min(y_min, y)
             x_max, y_max = max(x_max, x), max(y_max, y)
 
-        hpwl = (x_max - x_min) + (y_max - y_min)
+        hpwl = abs(x_max - x_min) + abs(y_max - y_min)
         total_wirelength += hpwl
 
     return total_wirelength
@@ -59,6 +62,7 @@ def perform_random_move(grid, cell_positions):
 
     # Find a new random position (can be an empty cell)
     while True:
+        # Pick a new random move between 0 and rows-1 & 0 and cols-1
         x_new, y_new = np.random.randint(rows), np.random.randint(cols)
         if grid[x_new, y_new] == -1 or (x_new, y_new) != (x_old, y_old):
             break
@@ -70,13 +74,12 @@ def perform_random_move(grid, cell_positions):
     return grid, cell_positions
 
 
-def simulated_annealing(grid, cell_positions, nets, initial_cost, cooling_rate, num_nets):
-    initial_temp = 4000000
-    current_temp = initial_temp
-    final_temp = 0.1
+def simulated_annealing(grid, cell_positions, nets, cooling_rate, num_nets):
     current_wirelength = calculate_wirelength(nets, cell_positions)
+    current_temp = 500 * current_wirelength
+    final_temp = (5e-6 * current_wirelength) / num_nets
     while current_temp > final_temp:
-        for _ in range(10 * len(cell_positions)):  # moves per temperature
+        for _ in range(10 * len(cell_positions)):  # moves per temperature = 10 * number of cells.
             # Perform a random move
             new_grid, new_cell_positions = perform_random_move(grid.copy(), cell_positions.copy())
 
@@ -86,9 +89,11 @@ def simulated_annealing(grid, cell_positions, nets, initial_cost, cooling_rate, 
             delta = new_wirelength - current_wirelength
 
             if delta < 0:
+                # Accept the change if change in wirelength is less than 0.
                 grid, cell_positions = new_grid, new_cell_positions
                 current_wirelength = new_wirelength
-            elif np.random.rand() < np.exp(-delta / current_temp):
+            # Calculate rejection probability.
+            elif np.random.rand() > (1-np.exp(-delta / current_temp)):
                 grid, cell_positions = new_grid, new_cell_positions
                 current_wirelength = new_wirelength
 
@@ -101,7 +106,7 @@ def main():
     # Example usage
     num_cells, num_nets, rows, cols, nets = parse_netlist('d0.txt')
     grid, cell_positions = initial_placement(num_cells, rows, cols)
-    final_grid, final_positions = simulated_annealing(grid, cell_positions, nets, 8000, 0.95, num_nets)
+    final_grid, final_positions = simulated_annealing(grid, cell_positions, nets, 0.95, num_nets)
     display_grid(final_grid)
 
 
