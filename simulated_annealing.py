@@ -78,6 +78,7 @@ def simulated_annealing(grid, cell_positions, nets, cooling_rate, num_nets):
     current_wirelength = calculate_wirelength(nets, cell_positions)
     current_temp = 500 * current_wirelength
     final_temp = (5e-6 * current_wirelength) / num_nets
+    final_wirelength = 0
     while current_temp > final_temp:
         for _ in range(10 * len(cell_positions)):  # moves per temperature = 10 * number of cells.
             # Perform a random move
@@ -99,15 +100,21 @@ def simulated_annealing(grid, cell_positions, nets, cooling_rate, num_nets):
 
         # Update the temperature
         current_temp *= cooling_rate
-    return grid, cell_positions
+        final_wirelength = current_wirelength
+    return grid, cell_positions, final_wirelength
 
 
 def main():
     # Example usage
-    num_cells, num_nets, rows, cols, nets = parse_netlist('d0.txt')
+    num_cells, num_nets, rows, cols, nets = parse_netlist('d2.txt')
     grid, cell_positions = initial_placement(num_cells, rows, cols)
-    final_grid, final_positions = simulated_annealing(grid, cell_positions, nets, 0.95, num_nets)
+    print('Random Placement (before annealing)')
+    display_grid(grid)
+    print(f'Initial Total Wire Length: {calculate_wirelength(nets,cell_positions)}')
+    final_grid, final_positions, final_wirelength = simulated_annealing(grid, cell_positions, nets, 0.95, num_nets)
+    print('After annealing:')
     display_grid(final_grid)
+    print(f'Final Total Wire Length: {final_wirelength}')
 
 
 if __name__ == "__main__":
