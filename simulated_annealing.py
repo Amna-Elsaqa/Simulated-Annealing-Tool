@@ -2,19 +2,20 @@ import numpy as np
 import random
 
 
-#Function to parse the input file netlist file and return all needed info:
-#(number of components, number of nets, the placement grid, and the nets connections details.)
+'''Function to parse the input file netlist file and return all needed info:
+(number of components, number of nets, the placement grid, and the nets connections details.)'''
+
 def parse_netlist(filename):
     with open(filename, 'r') as file:
         lines = file.readlines()
-    header = list(map(int,lines[0].split()))
+    header = list(map(int, lines[0].split()))
     num_cells, num_nets, rows, cols = header
     nets = []
     for line in lines[1:]:
-        nets.append(list(map(int,line.split(()))))
+        nets.append(list(map(int, line.split(' '))))
     return num_cells, num_nets, rows, cols, nets
 
-#Function for random initial placement of cells.
+
 def initial_placement(num_cells, rows, cols):
     grid = np.full((rows, cols), -1)  # -1 indicates an empty cell
     cell_positions = np.full((num_cells, 2), -1)  # New structure for cell_positions
@@ -27,3 +28,82 @@ def initial_placement(num_cells, rows, cols):
                 cell_positions[cell_id] = [x, y]
                 break
     return grid, cell_positions
+
+
+def display_grid(grid):
+    for row in grid:
+        print(' '.join('--' if cell == -1 else f'{cell:02d}' for cell in row))
+
+
+def calculate_wirelength(nets, cell_positions):
+    total_wirelength = 0
+    for net in nets:
+        x_min, y_min = float('inf'), float('inf')
+        x_max, y_max = float('-inf'), float('-inf')
+
+        for cell in net[1:]:  # Skip the first element as it's the number of components
+            x, y = cell_positions[cell]
+            x_min, y_min = min(x_min, x), min(y_min, y)
+            x_max, y_max = max(x_max, x), max(y_max, y)
+
+        hpwl = (x_max - x_min) + (y_max - y_min)
+        total_wirelength += hpwl
+
+    return total_wirelength
+
+
+def perform_random_move(grid, cell_positions):
+    rows, cols = grid.shape
+    cell_id = random.choice(range(len(cell_positions)))
+    x_old, y_old = cell_positions[cell_id]
+
+    # Find a new random position (can be an empty cell)
+    while True:
+        x_new, y_new = np.random.randint(rows), np.random.randint(cols)
+        if grid[x_new, y_new] == -1 or (x_new, y_new) != (x_old, y_old):
+            break
+    grid[x_old, y_old], grid[x_new, y_new] = grid[x_new, y_new], grid[x_old, y_old]
+    if grid[x_old, y_old] != -1:
+        cell_positions[grid[x_old, y_old]] = [x_old, y_old]
+    cell_positions[cell_id] = [x_new, y_new]
+
+    return grid, cell_positions
+
+
+def simulated_annealing(grid, cell_positions, nets, initial_cost, cooling_rate, num_nets):
+    initial_temp = 4000000
+    current_temp = initial_temp
+    final_temp = 0.1
+    current_wirelength = calculate_wirelength(nets, cell_positions)
+    while current_temp > final_temp:
+        for _ in range(10 * len(cell_positions)):  # moves per temperature
+            # Perform a random move
+            new_grid, new_cell_positions = perform_random_move(grid.copy(), cell_positions.copy())
+
+            # Calculate new wirelength
+            new_wirelength = calculate_wirelength(nets, new_cell_positions)
+
+            delta = new_wirelength - current_wirelength
+
+            if delta < 0:
+                grid, cell_positions = new_grid, new_cell_positions
+                current_wirelength = new_wirelength
+            elif np.random.rand() < np.exp(-delta / current_temp):
+                grid, cell_positions = new_grid, new_cell_positions
+                current_wirelength = new_wirelength
+
+        # Update the temperature
+        current_temp *= cooling_rate
+    return grid, cell_positions
+
+
+def main():
+    # Example usage
+    num_cells, num_nets, rows, cols, nets = parse_netlist('d0.txt')
+    grid, cell_positions = initial_placement(num_cells, rows, cols)
+    final_grid, final_positions = simulated_annealing(grid, cell_positions, nets, 8000, 0.95, num_nets)
+    display_grid(final_grid)
+
+
+if __name__ == "__main__":
+    main()
