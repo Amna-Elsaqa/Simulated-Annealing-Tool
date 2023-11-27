@@ -23,8 +23,7 @@ def initial_random_placement(num_cells, rows, cols):
 
     for cell_id in range(num_cells):
         while True:
-            #x, y = np.random.randint(rows), np.random.randint(cols)
-            x, y = np.random.randint(low = 0, high = (rows-1)), np.random.randint(low = 0, high = (cols-1))
+            x, y = np.random.randint(rows), np.random.randint(cols)
             if grid[x, y] == -1:
                 grid[x, y] = cell_id
                 cell_positions[cell_id] = [x, y]
@@ -32,40 +31,39 @@ def initial_random_placement(num_cells, rows, cols):
     return grid, cell_positions
 
 def calculate_wirelength_HPWL(nets, cell_positions):
-  wirelength = 0;
+  wire_length = 0;
 
   for net in nets:
 
     x_min, y_min = float('inf'), float('inf')
     x_max, y_max = float('-inf'), float('-inf')
 
-    net_size = net[0]
-    for i in net_size:
-      x = cell_positions[i][1]
-      y = cell_positions[i][2]
+    net_size = (len(net)-1)
+    for cell in net[1:]:
+      x,y = cell_positions[cell]
 
       x_min, y_min = min(x_min, x), min(y_min, y)
       x_max, y_max = max(x_max, x), max(y_max, y)
 
     hpwl_wirelength = abs(x_max - x_min) + abs(y_max - y_min)
-    wire_length += hpwl_wirelength
+    wire_length = wire_length + hpwl_wirelength
 
   return wire_length
 
 def swap_cells(num_cells, num_rows, num_cols, grid, cell_positions, cell_1, cell_2):
+  
   new_grid = np.full((num_rows, num_cols), 0)
   new_cell_positions = np.full((num_cells, 2), 0)
 
   new_cell_positions = cell_positions
   new_grid = grid
 
-  x_cell_1 = cell_positions[cell_1][1]
-  y_cell_1 = cell_positions[cell_1][2]
-  x_cell_2 = cell_positions[cell_2][1]
-  y_cell_2 = cell_positions[cell_1][2]
+  x_cell_1, y_cell_1 = cell_positions[cell_1]
+  x_cell_2, y_cell_2 = cell_positions[cell_2]
 
   new_cell_positions[cell_2] = cell_positions[cell_1]
   new_cell_positions[cell_1] = cell_positions[cell_2]
+  
 
   new_grid[x_cell_1, y_cell_1] = grid[x_cell_2, y_cell_2]
   new_grid[x_cell_2, y_cell_2] = grid[x_cell_1, y_cell_1]
@@ -95,7 +93,7 @@ def simulated_annealing_placement(num_cells, num_nets, num_rows, num_cols, nets)
     cell_1 = random.randint(0, (num_cells - 1))
     cell_2 = random.randint(0, (num_cells - 1))
 
-    while(cell_positions[cell_1] == cell_positions[cell_2]):
+    while( (cell_positions[cell_1] == cell_positions[cell_2]).all() ):
       cell_1 = random.randint(0, (num_cells - 1))
       cell_2 = random.randint(0, (num_cells - 1))
 
@@ -113,7 +111,7 @@ def simulated_annealing_placement(num_cells, num_nets, num_rows, num_cols, nets)
                 final_grid, final_cell_positions = new_grid, new_cell_positions
                 final_wirelength = wirelength_after_swap
 
-    temp = schedule_temp()
+    temp = schedule_temp(temp)
 
   return final_grid, final_cell_positions, final_wirelength
 
@@ -121,6 +119,7 @@ def simulated_annealing_placement(num_cells, num_nets, num_rows, num_cols, nets)
 def display_grid(grid):
     for row in grid:
         print(' '.join('--' if cell == -1 else f'{cell:02d}' for cell in row))
+
 
 file_name = "D0.txt"
 num_cells, num_nets, num_rows, num_cols, nets = parse_netlist(file_name)
